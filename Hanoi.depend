@@ -1,0 +1,12 @@
+# depslib dependency file v1.0
+1471628745 source:c:\users\aluno\desktop\hanoi\main.c
+	<stdio.h>
+	<stdlib.h>
+	<time.h>
+
+1472248397 source:d:\users\cleci\desktop\inteligencia artificial\hanoi\main.c
+	<stdio.h>
+	<stdlib.h>
+	<time.h>
+	<windows.h>
+
