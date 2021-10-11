@@ -1,223 +1,185 @@
-/**
- ------------------------------------------------------------
-    BIBLIOTECAS
- ------------------------------------------------------------
-**/
+/*
+ *------------------------------------------------------------------------------
+ * LIBRARIES
+ *------------------------------------------------------------------------------
+ */
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <termios.h>
 #include <time.h>
-#include <windows.h>
 
-/**
- ------------------------------------------------------------
-    MACROS
- ------------------------------------------------------------
-**/
-/* Macro que quando diferente de zero habilita a contagem
-    de tempo que o software dispendeu em sua execução */
-#define CONTAR_TEMPO    0
+/*
+ *------------------------------------------------------------------------------
+ * DEFINITIONS
+ *------------------------------------------------------------------------------
+ */
 
-// Nomes das Torres
-#define TORRE_A         'A'
-#define TORRE_B         'B'
-#define TORRE_C         'C'
+// tower names
+#define TOWER_A 'A'
+#define TOWER_B 'B'
+#define TOWER_C 'C'
 
-// Caractere utilizado para representaros discos
-#define CARACTER        254//219
+// character used to represent the discs
+#define DISC_CHARACTER '*'
 
-/**
- ------------------------------------------------------------
-    VARIÀVEIS GLOBAIS
- ------------------------------------------------------------
-**/
+/*
+ *------------------------------------------------------------------------------
+ * GLOBAL VARIABLES
+ *------------------------------------------------------------------------------
+ */
 
-// Posição atual dos discos
-char *torre;
+unsigned int numberOfDiscs;
+char *tower;
 
-// Quantidade de discos
-unsigned int numDiscos;
+/*
+ *------------------------------------------------------------------------------
+ * FUNCTIONS
+ *------------------------------------------------------------------------------
+ */
 
-// Contador de passos já efetuados
-unsigned int passos = 0;
-
-/**
- ------------------------------------------------------------
-    FUNÇÕES
- ------------------------------------------------------------
-**/
-
-// Função responsável por definir possição do cursor
-void gotoxy(int x, int y)
+// https://stackoverflow.com/questions/50884685/how-to-get-cursor-position-in-c-using-ansi-code
+int getCursorPosition(int *x, int *y)
 {
-    COORD coord = {0, 0};
+    struct termios term, restore;
+    char buf[30] = {0};
+    int ret, i, pow;
+    char ch;
+    *y = 0;
+    *x = 0;
 
-    coord.X = x;
-    coord.Y = y;
-    SetConsoleCursorPosition(GetStdHandle(STD_OUTPUT_HANDLE), coord);
-}
+    tcgetattr(0, &term);
+    tcgetattr(0, &restore);
+    term.c_lflag &= ~(ICANON | ECHO);
+    tcsetattr(0, TCSANOW, &term);
+    write(1, "\033[6n", 4);
 
-// Imprime a torre passada como parametro na tela
-void ImpTorre(char a)
-{
-	// Variáveis locais
-    int i, j;
-    unsigned int x1, x2;
-    unsigned int linha = 4 + numDiscos;
-
-    switch (a)
+    for (i = 0, ch = 0; ch != 'R'; i++)
     {
-    case TORRE_A:
-        x1 = 1;
-        break;
-    case TORRE_B:
-        x1 = max(2*numDiscos + 1, 9);
-        break;
-    case TORRE_C:
-    default:
-        x1 = max(4*numDiscos + 1, 17);
-    }
-    x2 = x1;
-    if (numDiscos > 4)
-        x1 += (numDiscos - 3);
-    else x2 += (3 - numDiscos);
-
-    gotoxy(x1, 3);
-    printf("Torre %c", a);
-
-    for (i = (numDiscos - 1); i >= 0; i--)
-    {
-        gotoxy(x2, linha);
-
-        if (torre[i] == a)
+        ret = read(0, &ch, 1);
+        if (!ret)
         {
-            linha--;
-
-            // Imprime lado esquerdo da torre
-            for (j = 0; j <= numDiscos; j++)
-            {
-                if (j < (numDiscos - i))
-                    putchar(' ');
-                else
-                    putchar(CARACTER);
-            }
-
-            // Imprime lado direito da torre
-            for (j = numDiscos; j >= 0; j--)
-            {
-                if (j > (numDiscos - i))
-                    putchar(CARACTER);
-                else
-                    putchar(' ');
-            }
-            //putchar(torre[i]);
-            putchar('\n');
+            tcsetattr(0, TCSANOW, &restore);
+            fprintf(stderr, "getpos: error reading response!\n");
+            return 1;
         }
+        buf[i] = ch;
+    }
+    if (i < 2)
+    {
+        tcsetattr(0, TCSANOW, &restore);
+        return 1;
+    }
+    for (i -= 2, pow = 1; buf[i] != ';'; i--, pow *= 10)
+        *x = *x + (buf[i] - '0') * pow;
+    for (i--, pow = 1; buf[i] != '['; i--, pow *= 10)
+        *y = *y + (buf[i] - '0') * pow;
+    tcsetattr(0, TCSANOW, &restore);
+    return 0;
+}
+
+void gotoxy(const int x, const int y)
+{
+    printf("%c[%d;%df", 0x1B, y, x);
+}
+
+void printCentered(char *str, unsigned int size)
+{
+    const unsigned int spaces = (size - strlen(str));
+    const unsigned int spacesBefore = spaces / 2;
+    const unsigned int spacesAfter = spacesBefore + spaces % 2;
+    for (unsigned int i = 0; i < spacesBefore; i++)
+        putchar(' ');
+    printf("%s", str);
+    for (unsigned int i = 0; i < spacesAfter; i++)
+        putchar(' ');
+}
+
+void printHeader()
+{
+    printCentered("Tower A", 2 * numberOfDiscs);
+    printCentered("Tower B", 2 * numberOfDiscs);
+    printCentered("Tower C", 2 * numberOfDiscs);
+    putchar('\n');
+}
+
+void printTower()
+{
+    static int x = -1, y = -1;
+    static const unsigned int offset = 1;
+    const unsigned int baseDiscSize = 2 * numberOfDiscs - 1;
+    const unsigned int numberOfColumns = 3 * (baseDiscSize + offset);
+    unsigned int a = numberOfDiscs, b = numberOfDiscs, c = numberOfDiscs;
+    char table[numberOfDiscs][numberOfColumns];
+    memset(table, ' ', sizeof(table));
+
+    if (x < 0 || y < 0)
+        getCursorPosition(&x, &y);
+    else
+        gotoxy(x, y);
+
+    for (unsigned int i = numberOfDiscs - 1; i < numberOfDiscs; i--)
+    {
+        unsigned int line;
+        const unsigned int discSize = baseDiscSize - 2 * (numberOfDiscs - i - 1);
+        const unsigned int column = (tower[i] - TOWER_A) * (baseDiscSize + offset) + numberOfDiscs - i + offset - 1;
+        if (tower[i] == TOWER_A)
+            line = --a;
+        else if (tower[i] == TOWER_B)
+            line = --b;
+        else if (tower[i] == TOWER_C)
+            line = --c;
+        memset(&table[line][column], DISC_CHARACTER, discSize);
+    }
+    for (unsigned int line = 0; line < numberOfDiscs; line++)
+    {
+        printf("%.*s\n", numberOfColumns, table[line]);
     }
 }
 
-// Imprime o passo atual do jogo na tela
-void Imprime(void)
+void move(unsigned int n, char a, char b)
 {
-    ImpTorre(TORRE_A);
-    ImpTorre(TORRE_B);
-    ImpTorre(TORRE_C);
-
-    gotoxy(0, (5 + numDiscos));
+    static unsigned int steps = 0;
+    sleep(1);
+    tower[n - 1] = b;
+    printTower();
+    printf("Step %d: Move disc %d from %c to %c \n", ++steps, n, a, b);
 }
 
-// Realiza um movimento do hanoi (um disco)
-void Move(unsigned int n, char a, char b)
-{
-    // Exibe os dados na tela por um segundo
-    Sleep(1000);
-
-    // Limpa a tela
-    system("cls");
-
-    // Incrementa contador de passos
-    passos++;
-    printf("\nPasso %d: Mova disco %d de %c para %c\n", passos, n, a, b);
-    torre[n-1] = b;
-
-    // Imprime torre
-    Imprime();
-}
-
-// Função responsável pela lógica do jogo
 void hanoi(unsigned int n, char a, char b, char c)
 {
-    /** Mova n discos da torre a para a torre b usando
-        a torre c como intermediário **/
-
     if (n == 1)
-        Move(n, a, b);
+        move(n, a, b);
     else
     {
         hanoi(n - 1, a, c, b);
-        Move(n, a, b);
+        move(n, a, b);
         hanoi(n - 1, c, b, a);
     }
 }
 
-/**
- ------------------------------------------------------------
-    MAIN
- ------------------------------------------------------------
-**/
+/*
+ *------------------------------------------------------------------------------
+ * MAIN
+ *------------------------------------------------------------------------------
+ */
 
 int main()
 {
-	// Variáveis locais
-    unsigned int i;
-#if CONTAR_TEMPO
-    long long int inicio;
-    long long int fim;
-#endif // CONTAR_TEMPO
-
-    puts("\nInforme o numero de discos:\n");
-    scanf("%d", &numDiscos);
-    fflush(stdin);
-
-    // Inicializa torre virtual
-    torre = malloc(numDiscos);
-    for (i = 0; i < numDiscos; i++)
-    {
-        torre[i] = TORRE_A;
-    }
-
-#if CONTAR_TEMPO
-    inicio = clock();
-#endif // CONTAR_TEMPO
-
-    // Limpa a tela
-    system("cls");
-
-    // Imprime condição inicial
-    printf("\nCondicao Inicial: \n");
-    Imprime();
-
-    // Executa a resolução do jogo
-    hanoi(numDiscos, TORRE_A, TORRE_B, TORRE_C);
-
-#if CONTAR_TEMPO
-    fim = clock();
-    printf("Tempo decorrido: %dms", (fim - inicio));
-#endif // CONTAR_TEMPO
-
-    // Desaloca memória alocada dinamicamente
-    free(torre);
-    torre = NULL;
-
-    // Espera o usuário clicar uma tecla
-    putchar('\n');
-    system("pause");
-
-    return 0;
+    numberOfDiscs = 5;
+    tower = malloc(numberOfDiscs);
+    memset(tower, TOWER_A, numberOfDiscs);
+    printHeader();
+    printTower();
+    hanoi(numberOfDiscs, TOWER_A, TOWER_B, TOWER_C);
+    free(tower);
+    return EXIT_SUCCESS;
 }
 
-/**
- ------------------------------------------------------------
-    FIM
- ------------------------------------------------------------
-**/
+/*
+ *------------------------------------------------------------------------------
+ * END
+ *------------------------------------------------------------------------------
+ */
