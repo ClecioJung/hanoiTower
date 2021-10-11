@@ -31,7 +31,7 @@
  *------------------------------------------------------------------------------
  */
 
-unsigned int numberOfDiscs;
+unsigned int numberOfDiscs = 0;
 char *tower;
 
 /*
@@ -166,9 +166,16 @@ void hanoi(unsigned int n, char a, char b, char c)
  *------------------------------------------------------------------------------
  */
 
-int main()
+int main(const int argc, const char *const argv[])
 {
-    numberOfDiscs = 5;
+    if (argc >= 2)
+    {
+        numberOfDiscs = atoi(argv[1]);
+    } 
+    if (numberOfDiscs <= 3) {
+        numberOfDiscs = 5;
+    }
+    fflush(stdin);
     tower = malloc(numberOfDiscs);
     memset(tower, TOWER_A, numberOfDiscs);
     printHeader();
