@@ -8,8 +8,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <termios.h>
-#include <time.h>
 
 /*
  *------------------------------------------------------------------------------
@@ -40,49 +38,10 @@ char *tower;
  *------------------------------------------------------------------------------
  */
 
-// https://stackoverflow.com/questions/50884685/how-to-get-cursor-position-in-c-using-ansi-code
-int getCursorPosition(int *x, int *y)
+void rewindCursor(const unsigned int lines, const unsigned int columns)
 {
-    struct termios term, restore;
-    char buf[30] = {0};
-    int ret, i, pow;
-    char ch;
-    *y = 0;
-    *x = 0;
-
-    tcgetattr(0, &term);
-    tcgetattr(0, &restore);
-    term.c_lflag &= ~(ICANON | ECHO);
-    tcsetattr(0, TCSANOW, &term);
-    write(1, "\033[6n", 4);
-
-    for (i = 0, ch = 0; ch != 'R'; i++)
-    {
-        ret = read(0, &ch, 1);
-        if (!ret)
-        {
-            tcsetattr(0, TCSANOW, &restore);
-            fprintf(stderr, "getpos: error reading response!\n");
-            return 1;
-        }
-        buf[i] = ch;
-    }
-    if (i < 2)
-    {
-        tcsetattr(0, TCSANOW, &restore);
-        return 1;
-    }
-    for (i -= 2, pow = 1; buf[i] != ';'; i--, pow *= 10)
-        *x = *x + (buf[i] - '0') * pow;
-    for (i--, pow = 1; buf[i] != '['; i--, pow *= 10)
-        *y = *y + (buf[i] - '0') * pow;
-    tcsetattr(0, TCSANOW, &restore);
-    return 0;
-}
-
-void gotoxy(const int x, const int y)
-{
-    printf("%c[%d;%df", 0x1B, y, x);
+    printf("\x1b[%dA", lines);
+    printf("\x1b[%dD", columns);
 }
 
 void printCentered(char *str, unsigned int size)
@@ -107,18 +66,12 @@ void printHeader()
 
 void printTower()
 {
-    static int x = -1, y = -1;
     static const unsigned int offset = 1;
     const unsigned int baseDiscSize = 2 * numberOfDiscs - 1;
     const unsigned int numberOfColumns = 3 * (baseDiscSize + offset);
     unsigned int a = numberOfDiscs, b = numberOfDiscs, c = numberOfDiscs;
     char table[numberOfDiscs][numberOfColumns];
     memset(table, ' ', sizeof(table));
-
-    if (x < 0 || y < 0)
-        getCursorPosition(&x, &y);
-    else
-        gotoxy(x, y);
 
     for (unsigned int i = numberOfDiscs - 1; i < numberOfDiscs; i--)
     {
@@ -144,6 +97,7 @@ void move(unsigned int n, char a, char b)
     static unsigned int steps = 0;
     sleep(1);
     tower[n - 1] = b;
+    rewindCursor(numberOfDiscs + 1, 0);
     printTower();
     printf("Step %d: Move disc %d from %c to %c \n", ++steps, n, a, b);
 }
@@ -172,7 +126,7 @@ int main(const int argc, const char *const argv[])
     {
         numberOfDiscs = atoi(argv[1]);
     } 
-    if (numberOfDiscs <= 3) {
+    if (numberOfDiscs < 4) {
         numberOfDiscs = 5;
     }
     fflush(stdin);
@@ -180,6 +134,7 @@ int main(const int argc, const char *const argv[])
     memset(tower, TOWER_A, numberOfDiscs);
     printHeader();
     printTower();
+    printf("Initial position.\n");
     hanoi(numberOfDiscs, TOWER_A, TOWER_B, TOWER_C);
     free(tower);
     return EXIT_SUCCESS;
