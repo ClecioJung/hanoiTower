@@ -26,7 +26,7 @@ OBJS = $(patsubst %,%.o,$(basename $(subst $(SDIR),$(ODIR),$(SRCS))))
 # Compiler and linker definitions
 # ----------------------------------------
 
- # Compiler and linker
+# Compiler and linker
 #CC = gcc
 #CXX = g++
 

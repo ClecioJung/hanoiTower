@@ -97,9 +97,10 @@ void move(unsigned int n, char a, char b)
     static unsigned int steps = 0;
     sleep(1);
     tower[n - 1] = b;
-    rewindCursor(numberOfDiscs + 1, 0);
+    rewindCursor(numberOfDiscs + 3, 0);
+    printf("Step %d: Move disc %d from %c to %c \n\n", ++steps, n, a, b);
+    printHeader();
     printTower();
-    printf("Step %d: Move disc %d from %c to %c \n", ++steps, n, a, b);
 }
 
 void hanoi(unsigned int n, char a, char b, char c)
@@ -129,12 +130,11 @@ int main(const int argc, const char *const argv[])
     if (numberOfDiscs < 4) {
         numberOfDiscs = 5;
     }
-    fflush(stdin);
     tower = malloc(numberOfDiscs);
     memset(tower, TOWER_A, numberOfDiscs);
+    printf("Initial position:\n\n");
     printHeader();
     printTower();
-    printf("Initial position.\n");
     hanoi(numberOfDiscs, TOWER_A, TOWER_B, TOWER_C);
     free(tower);
     return EXIT_SUCCESS;
