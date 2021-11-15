@@ -7,6 +7,7 @@ Hanoi tower game solved automaticaly. It posseses the following characteristics:
     - Only one disk may be moved at a time;
     - Each move consists of taking the upper disk from one of the towers and placing it on top of another tower;
     - No disk may be placed on top of a disk that is smaller than it;
+- This code is platform dependent and will work only on Linux;
 - It produces an terminal animation just like this:
 
 ![Alt Text](./hanoi.gif)
